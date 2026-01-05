@@ -1,6 +1,5 @@
-### ✅ **ARCHITECTURE.md**
+### **ARCHITECTURE.md**
 
-```md
 # OrbitRelay Architecture
 
 This document describes the architecture and design decisions behind OrbitRelay,
@@ -153,4 +152,3 @@ The relayer is **untrusted**; incorrect behavior results in invalid proofs.
 
 OrbitRelay is an ongoing research project focused on exploring
 trust-minimized API verification patterns on Solana.
-```
