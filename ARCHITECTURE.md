@@ -1,5 +1,3 @@
-### **ARCHITECTURE.md**
-
 # OrbitRelay Architecture
 
 This document describes the architecture and design decisions behind OrbitRelay,
