@@ -48,11 +48,9 @@ Most oracles require you to trust a centralized middleman. OrbitRelay changes th
 
 **Prerequisites**
 
-Solana CLI
-
-Anchor Framework
-
-Succinct SP1 toolchain
+- [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools)
+- [Anchor Framework](https://www.anchor-lang.com/docs/installation)
+- [Succinct SP1 Toolchain](https://docs.succinct.xyz/docs/sp1/getting-started)
 
 ---
 
@@ -60,20 +58,26 @@ Succinct SP1 toolchain
 
 ### 1. Clone the repo:
 
+```bash
 git clone https://github.com/your-username/OrbitRelay.git
 cd OrbitRelay
+```
 
 ### 2. Deploy the Solana Program:
 
+```bash
 cd https-gateway
 anchor build
 anchor deploy
+```
 
 ### 3. Run the Relayer:
 
+```bash
 cd relayer
 npm install
 npm run dev
+```
 
 ---
 
