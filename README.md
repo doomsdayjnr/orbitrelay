@@ -1,16 +1,10 @@
-# OrbitRelay
+# 🛰️ OrbitRelay
 
-OrbitRelay is an **experimental trust layer** for bringing off-chain API data on-chain
-using **zero-knowledge proofs** on Solana.
+### A Zero-Knowledge Digital Alibi for the Web
 
-Instead of trusting a centralized oracle, OrbitRelay verifies that:
+OrbitRelay is a trust-minimized, ZK-powered oracle protocol that bridges the gap between Web2 data and Solana. It provides a **"Verified Tick"** for any HTTPS API, proving that off-chain data is authentic without requiring you to trust the person who delivered it.
 
-- A specific API endpoint was queried
-- The response corresponds to that endpoint
-- The verification logic was executed correctly, proven via ZK
-
-> ⚠️ This project is experimental and unaudited.  
-> It is under active research and not intended for production use.
+**Built for the Solana Privacy Hack 2026** — Category: Privacy Tooling & Infrastructure
 
 ---
 
