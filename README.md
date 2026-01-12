@@ -1,6 +1,6 @@
 # 🛰️ OrbitRelay
 
-### A Zero-Knowledge Digital Alibi for the Web
+## A Zero-Knowledge Digital Alibi for the Web
 
 OrbitRelay is a trust-minimized, ZK-powered oracle protocol that bridges the gap between Web2 data and Solana. It provides a **"Verified Tick"** for any HTTPS API, proving that off-chain data is authentic without requiring you to trust the person who delivered it.
 
@@ -8,19 +8,15 @@ OrbitRelay is a trust-minimized, ZK-powered oracle protocol that bridges the gap
 
 ---
 
-## Motivation
+## 🛠️ The Vision: Your Digital Alibi
 
-Smart contracts often rely on external API data, which introduces trust assumptions
-around oracles and relayers.
+Most oracles require you to trust a centralized middleman. OrbitRelay changes the game by using **Succinct SP1 (zkVM)** to generate a cryptographic "alibi" for your data:
 
-OrbitRelay explores an alternative approach:
+✅ **Verified Origin**: Cryptographically proves that the data came from a specific, untampered HTTPS source (e.g., Coingecko, a bank API, or a weather station).
 
-- Off-chain data fetching
-- Deterministic processing
-- Cryptographic proof verification on-chain
+🛡️ **Untrusted Relayers**: The relayer can be anyone. If they try to "mess with" the data, the ZK proof will fail on-chain, and the Solana program will reject it.
 
-The goal is not to replace existing oracle networks, but to investigate
-**trust-minimized API verification patterns** on Solana.
+🤫 **Selective Disclosure**: Enables privacy-preserving logic, such as proving a user's balance is above a threshold without revealing the exact amount to the blockchain.
 
 ---
 
