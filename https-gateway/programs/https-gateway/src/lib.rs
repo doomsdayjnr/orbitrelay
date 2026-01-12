@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;  // For URL hashing
 use sp1_solana::verify_proof;  // Real SP1 Groth16 verifier
