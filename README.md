@@ -31,3 +31,68 @@ Most oracles require you to trust a centralized middleman. OrbitRelay changes th
 **Jito-Enabled**: The relayer uses Jito bundles to ensure proof fulfillment is fast and reliable.
 
 ---
+
+## 🏗️ Technical Architecture
+
+**OrbitRelay consists of three integrated layers:**
+
+1. **On-Chain Program (Anchor/Rust)**: Manages data requests and uses the sp1-solana verifier to validate proofs.
+
+2. **ZK-VM Guest (Rust)**: A specialized program running in SP1 that fetches, parses, and attests to the HTTPS response.
+
+3. **Real-Time Relayer (TypeScript)**: Observes Solana events, manages the off-chain proving lifecycle, and submits the "Verified Tick" back on-chain.
+
+---
+
+## 🔧 Getting Started
+
+**Prerequisites**
+
+Solana CLI
+
+Anchor Framework
+
+Succinct SP1 toolchain
+
+---
+
+## Installation
+
+### 1. Clone the repo:
+
+git clone https://github.com/your-username/OrbitRelay.git
+cd OrbitRelay
+
+### 2. Deploy the Solana Program:
+
+cd https-gateway
+anchor build
+anchor deploy
+
+### 3. Run the Relayer:
+
+cd relayer
+npm install
+npm run dev
+
+---
+
+## 📜 Trust Model
+
+**Trusted:** The core ZK-VM circuit logic and the on-chain verification key.
+
+**Untrusted:** The relayer, the transport layer, and any third-party infrastructure.
+
+---
+
+## 🗺️ Roadmap
+
+[ ] **Mainnet Integration:** Moving from Solana Devnet to Mainnet.
+
+[ ] **Hardware-Accelerated Proving:** Reducing latency for high-frequency price feeds.
+
+[ ] **Private Data Feeds:** Support for authenticated APIs (API keys/OAuth) within the ZK-VM.
+
+---
+
+**Developed for the 2026 Solana Privacy Hack.** Investigating trust-minimized API verification patterns to make Solana the most secure home for real-world data.
