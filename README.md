@@ -59,7 +59,7 @@ Most oracles require you to trust a centralized middleman. OrbitRelay changes th
 ### 1. Clone the repo:
 
 ```bash
-git clone https://github.com/your-username/OrbitRelay.git
+git clone https://github.com/doomsdayjnr/orbitrelay.git
 cd OrbitRelay
 ```
 
