@@ -1,0 +1,41 @@
+{
+  "name": "@orbit-relay/sdk",
+  "version": "0.1.0",
+  "description": "Verified HTTPS-to-Solana ZK-Relay SDK",
+  "keywords": [
+    "solana",
+    "zk",
+    "sp1",
+    "oracle",
+    "orbitrelay"
+  ],
+  "homepage": "https://github.com/doomsdayjnr/orbitrelay#readme",
+  "bugs": {
+    "url": "https://github.com/doomsdayjnr/orbitrelay/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/doomsdayjnr/orbitrelay.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Rosco Adams <roscoadams9@gmail.com>",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.91.0",
+    "@coral-xyz/anchor": "^0.30.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

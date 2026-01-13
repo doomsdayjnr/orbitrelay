@@ -187,14 +187,11 @@ async function processRequest(requestId: PublicKey, url: string) {
 
 
     // Only use this if you have Succint PROVE token
-    // Construct the absolute path to the binary
-    const binaryPath = path.resolve(__dirname, '../target/release/sp1-fetch-script');
-
     try {
       console.log("Requesting Network Proof from Succinct...");
       
       // You MUST include 'cwd' so Rust finds input.txt and writes proof.bin in the right place
-      const { stdout, stderr } = await execFileAsync(binaryPath, ['--prove'], {
+      const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--prove'], {
           cwd: './sp1-fetch', 
           env: { 
               ...process.env, 
@@ -204,13 +201,17 @@ async function processRequest(requestId: PublicKey, url: string) {
           }
       });
 
+      if (stderr) {
+            console.error("Rust stderr:", stderr);
+        }
+
       console.log("Rust Output:", stdout);
   } catch (error: any) {
       // If it still says "Killed", it means your main.rs is still trying to prove locally
       console.error("Prover Error:", error);
   }
 
-    //Else you use this to generate a proof instead
+    // Else you use this to generate a proof instead
     // try {
     //     console.log("Generating SP1 proof...");
         
