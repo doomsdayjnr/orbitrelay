@@ -10,8 +10,6 @@ import { promisify } from 'util';
 import { searcher, bundle } from "jito-ts";
 import * as fs from 'fs';
 import { BundleResult } from 'jito-ts/dist/gen/block-engine/bundle';
-import path from 'path';
-
 require('dotenv').config();
 
 console.log("=== ORBITRELAY RELAYER DEBUG MODE ===");
@@ -174,8 +172,26 @@ async function processRequest(requestId: PublicKey, url: string) {
        }
     });
 
+    // console.log("Generating Dummy SP1 proof...");
+    // execSync('cargo run --bin sp1-fetch-script --release -- --execute', {
+    //   cwd: './sp1-fetch',
+    //   stdio: 'inherit',
+    //   env: { ...process.env, 
+    //     RUST_LOG: 'info' ,
+    //   }
+    // });
+
+    // console.log("Generating Dummy SP1 proof...");
+    // execSync('./target/release/sp1-fetch-script --execute', {
+    //   cwd: './sp1-fetch',
+    //   stdio: 'inherit',
+    //   env: { ...process.env, 
+    //     RUST_LOG: 'info' ,
+    //   }
+    // });
+
     // console.log("Generating Real SP1 proof...");
-    // execSync('./target/release/sp1-fetch-script --prove', {
+    // execSync('cargo run --bin sp1-fetch-script --release -- --prove', {
     //   cwd: './sp1-fetch',
     //   stdio: 'inherit',
     //   env: { ...process.env, 
@@ -185,47 +201,21 @@ async function processRequest(requestId: PublicKey, url: string) {
 
     const execFileAsync = promisify(execFile);
 
-
-    // Only use this if you have Succint PROVE token
-    // Construct the absolute path to the binary
-    const binaryPath = path.resolve(__dirname, '../target/release/sp1-fetch-script');
-
     try {
-      console.log("Requesting Network Proof from Succinct...");
-      
-      // You MUST include 'cwd' so Rust finds input.txt and writes proof.bin in the right place
-      const { stdout, stderr } = await execFileAsync(binaryPath, ['--prove'], {
-          cwd: './sp1-fetch', 
-          env: { 
-              ...process.env, 
-              SP1_PROVER: 'network', 
-              NETWORK_PRIVATE_KEY: process.env.NETWORK_PRIVATE_KEY,
-              RUST_LOG: 'info' 
-          }
-      });
-
-      console.log("Rust Output:", stdout);
-  } catch (error: any) {
-      // If it still says "Killed", it means your main.rs is still trying to prove locally
-      console.error("Prover Error:", error);
-  }
-
-    //Else you use this to generate a proof instead
-    // try {
-    //     console.log("Generating SP1 proof...");
+        console.log("Generating SP1 proof...");
         
-    //     // Command: ./target/release/sp1-fetch-script
-    //     // Arguments: ["--execute"]
-    //     const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute']);
+        // Command: ./target/release/sp1-fetch-script
+        // Arguments: ["--execute"]
+        const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute']);
 
-    //     if (stderr) {
-    //         console.error("Rust stderr:", stderr);
-    //     }
-    //     console.log("Rust stdout:", stdout);
+        if (stderr) {
+            console.error("Rust stderr:", stderr);
+        }
+        console.log("Rust stdout:", stdout);
 
-    // } catch (error) {
-    //     console.error("Execution failed:", error);
-    // }
+    } catch (error) {
+        console.error("Execution failed:", error);
+    }
 
     const sp1Proof = fs.readFileSync('./sp1-fetch/proof.bin');
     console.log("Proof generated:", sp1Proof.length, "bytes");

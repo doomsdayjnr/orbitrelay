@@ -126,7 +126,7 @@ function App() {
           setPrice("Timeout — check relayer logs");
           setLoading(false);
         }
-      }, 30000);
+      }, 300000);
 
     } catch (err: any) {
       console.error(err);

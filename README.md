@@ -71,10 +71,18 @@ anchor build
 anchor deploy
 ```
 
-### 3. Run the Relayer:
+### 3. Run the Relayer (on Windows use WSL):
 
 ```bash
 cd relayer
+npm install
+npm start
+```
+
+### 4. Run the Frontend:
+
+```bash
+cd frontend
 npm install
 npm run dev
 ```

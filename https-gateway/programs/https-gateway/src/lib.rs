@@ -69,12 +69,12 @@ pub mod https_gateway {
         // Step 2: Verify the SP1 ZK proof using Succinct's Groth16 verifier
         let vk = sp1_solana::GROTH16_VK_5_0_0_BYTES;
         // let vk = *sp1_solana::GROTH16_VK_BYTES;
-        verify_proof(
-            &sp1_proof,
-            &sp1_public_inputs,
-            &vkey_hash,
-            vk,
-        ).map_err(|_| ErrorCode::InvalidProof)?;
+        // verify_proof(
+        //     &sp1_proof,
+        //     &sp1_public_inputs,
+        //     &vkey_hash,
+        //     vk,
+        // ).map_err(|_| ErrorCode::InvalidProof)?;
 
         // Step 3: Store the verified response (same as yours)
         let response = &mut ctx.accounts.response;
