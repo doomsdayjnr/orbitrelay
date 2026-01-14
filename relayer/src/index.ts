@@ -165,25 +165,33 @@ async function processRequest(requestId: PublicKey, url: string) {
     const inputContent = `${url}\n${responseBytes}`;
     fs.writeFileSync('./sp1-fetch/input.txt', inputContent);
 
-    console.log("Building SP1 program...");
-    execSync('cargo prove build --packages sp1-fetch-program', {
-      cwd: './sp1-fetch',
-      stdio: 'inherit',
-      env: { ...process.env, 
-        RUST_LOG: 'info',
-       }
-    });
+
+    //The logic should automatically build the program if not already built. Uncomment below if you want to force rebuild each time.
+    // START: Build SP1 program
+
+    // console.log("Building SP1 program...");
+    // execSync('cargo prove build --packages sp1-fetch-program', {
+    //   cwd: './sp1-fetch',
+    //   stdio: 'inherit',
+    //   env: { ...process.env, 
+    //     RUST_LOG: 'info',
+    //    }
+    // });
+    
+    // END: Build SP1 program
 
 
     // START: This logic is used to generate a local proof
-    console.log("Generating Real SP1 proof...");
-    execSync('./target/release/sp1-fetch-script --prove', {
-      cwd: './sp1-fetch',
-      stdio: 'inherit',
-      env: { ...process.env, 
-        RUST_LOG: 'info' ,
-      }
-    });
+    
+    // console.log("Generating Real SP1 proof...");
+    // execSync('./target/release/sp1-fetch-script --prove', {
+    //   cwd: './sp1-fetch',
+    //   stdio: 'inherit',
+    //   env: { ...process.env, 
+    //     RUST_LOG: 'info' ,
+    //   }
+    // });
+
     // END: Local proof generation
 
     const execFileAsync = promisify(execFile);
@@ -217,21 +225,21 @@ async function processRequest(requestId: PublicKey, url: string) {
     // END: Network proof request
 
     // START: This logic is used to execute the SP1 fetch script without proving (for testing)
-    // try {
-    //     console.log("Generating SP1 proof...");
+    try {
+        console.log("Generating SP1 proof...");
         
-    //     // Command: ./target/release/sp1-fetch-script
-    //     // Arguments: ["--execute"]
-    //     const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute']);
+        // Command: ./target/release/sp1-fetch-script
+        // Arguments: ["--execute"]
+        const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute']);
 
-    //     if (stderr) {
-    //         console.error("Rust stderr:", stderr);
-    //     }
-    //     console.log("Rust stdout:", stdout);
+        if (stderr) {
+            console.error("Rust stderr:", stderr);
+        }
+        console.log("Rust stdout:", stdout);
 
-    // } catch (error) {
-    //     console.error("Execution failed:", error);
-    // }
+    } catch (error) {
+        console.error("Execution failed:", error);
+    }
 
     // END: SP1 fetch script execution without proving
 
