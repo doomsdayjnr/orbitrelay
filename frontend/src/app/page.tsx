@@ -93,16 +93,12 @@ function App() {
       console.log("responsePda:", responsePda.toBase58());
 
       // Send request
-      const txSig = await program.methods
+       await program.methods
         .requestData(requestUrl, requestJsonPath, new anchor.BN(requestSlot))
         .accounts({ dataRequest: requestPda, user: publicKey, })
         .rpc();
 
-      // alert(`Request sent! Tx: ${txSig}\nWaiting for ZK proof...`);
-
-      // console.log("TX", txSig);
-
-
+    
 
       // === POLL FOR RESPONSE ===
       const pollInterval = setInterval(async () => {
