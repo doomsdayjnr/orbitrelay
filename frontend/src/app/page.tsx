@@ -27,21 +27,37 @@ export default function Home() {
   );
 }
 
+function getByPath(obj: any, path: string): any {
+  return path.split('.').reduce((acc, key) => {
+    if (acc && typeof acc === 'object') {
+      return acc[key];
+    }
+    return undefined;
+  }, obj);
+}
+
 function App() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const anchorWallet = useAnchorWallet();  // ← MAGIC: This is your pre-wrapped AnchorWallet!
   const [loading, setLoading] = useState(false);
-  const [price, setPrice] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [jsonPath, setJsonPath] = useState("");
+  const [result, setResult] = useState<any>(null);
 
-  const getPrice = useCallback(async () => {
+  const requestData = useCallback(async () => {
     if (!publicKey || !anchorWallet) {
       alert("Connect wallet first!");
       return;
     }
 
+    if (!url || !jsonPath) {
+      alert("Enter URL and JSON path");
+      return;
+    }
+
     setLoading(true);
-    setPrice(null);
+    setResult(null);
 
     try {
       const provider = new anchor.AnchorProvider(connection, anchorWallet, {
@@ -52,7 +68,9 @@ function App() {
 
       const requestSlot = Date.now() + Math.floor(Math.random() * 1000);
       console.log("Request Slot:", requestSlot);
-      const url = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
+      // const url = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
+      const requestUrl = url;
+      const requestJsonPath = jsonPath;
 
 
       // === DERIVE THE REQUEST PDA ===
@@ -76,13 +94,13 @@ function App() {
 
       // Send request
       const txSig = await program.methods
-        .requestData(url, "solana.usd", new anchor.BN(requestSlot))
+        .requestData(requestUrl, requestJsonPath, new anchor.BN(requestSlot))
         .accounts({ dataRequest: requestPda, user: publicKey, })
         .rpc();
 
-      alert(`Request sent! Tx: ${txSig}\nWaiting for ZK proof...`);
+      // alert(`Request sent! Tx: ${txSig}\nWaiting for ZK proof...`);
 
-      console.log("TX", txSig);
+      // console.log("TX", txSig);
 
 
 
@@ -103,14 +121,8 @@ function App() {
             console.log("jsonData", jsonData);
             
             // Extract using json_path
-            const price = jsonData.solana?.usd;
-            console.log("Price", price);
-            
-            if (price) {
-              setPrice(price.toFixed(2));
-            } else {
-              setPrice("Error parsing price");
-            }
+            const extracted = getByPath(jsonData, jsonPath);
+            setResult(extracted ?? "Path not found");
             
             setLoading(false);
           }
@@ -122,10 +134,8 @@ function App() {
       // Timeout after 30s
       setTimeout(() => {
         clearInterval(pollInterval);
-        if (loading) {
-          setPrice("Timeout — check relayer logs");
-          setLoading(false);
-        }
+        setResult("Timeout — check relayer logs");
+        setLoading(false);
       }, 300000);
 
     } catch (err: any) {
@@ -133,7 +143,7 @@ function App() {
       alert("Error: " + err.message);
       setLoading(false);
     }
-  }, [connection, publicKey, anchorWallet, loading]);
+  }, [connection, publicKey, anchorWallet, url, jsonPath]);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-12 px-4">
@@ -146,18 +156,50 @@ function App() {
 
       <WalletMultiButton className="!bg-purple-600 hover:!bg-purple-700" />
 
+      <input
+        type="text"
+        placeholder="HTTPS API URL"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        className=" w-full max-w-2xl
+        px-4 py-3
+        rounded-xl
+        bg-white/90 backdrop-blur
+        text-black
+        placeholder-gray-600
+        border border-white/20
+        focus:outline-none
+        focus:ring-2 focus:ring-pink-500"
+      />
+
+      <input
+        type="text"
+        placeholder="JSON path (e.g. solana.usd)"
+        value={jsonPath}
+        onChange={(e) => setJsonPath(e.target.value)}
+        className=" w-full max-w-2xl
+        px-4 py-3
+        rounded-xl
+        bg-white/90 backdrop-blur
+        text-black
+        placeholder-gray-600
+        border border-white/20
+        focus:outline-none
+        focus:ring-2 focus:ring-pink-500"
+      />
+
       <button
-        onClick={getPrice}
+        onClick={requestData}
         disabled={loading || !publicKey}
         className="px-16 py-8 text-3xl font-bold rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all transform hover:scale-105 shadow-2xl"
       >
-        {loading ? "Requesting..." : "Get SOL Price"}
+        {loading ? "Requesting..." : "Request any HTTPS endpoint + extract any JSON field"}
       </button>
 
-      {price && (
-        <div className="text-6xl font-bold animate-pulse">
-          SOL = <span className="text-green-400">${price}</span>
-        </div>
+      {result !== null && (
+        <pre className="max-w-3xl text-lg bg-gray-900 p-6 rounded-xl overflow-x-auto">
+          {JSON.stringify(result, null, 2)}
+        </pre>
       )}
     </div>
   );

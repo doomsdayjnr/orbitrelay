@@ -60,99 +60,107 @@ if (!VKEY_HASH) throw new Error("VKEY_HASH not set in .env file");
 // Websocket (ensure your RPC supports ws; some providers use a separate websocket URL)
 const wsUrl = RPC_URL.replace(/^https?:\/\//, RPC_URL.startsWith('https') ? 'wss://' : 'ws://').replace('api.', 'api.');
 console.log("→ Connecting to WebSocket:", wsUrl);
-const ws = new WebSocket(wsUrl);
+let heartbeat: NodeJS.Timeout | null = null;
 
-ws.on("open", () => {
-  console.log("WebSocket connected");
-  
-   ws.send(JSON.stringify({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "logsSubscribe",
-    params: [
-      {
-        mentions: [PROGRAM_ID.toBase58()]
-      },
-      {
-        commitment: "confirmed"
+function connectWs() {
+  console.log("→ Connecting to WebSocket:", wsUrl);
+  const ws = new WebSocket(wsUrl);
+
+  ws.on("open", () => {
+    console.log("WebSocket connected");
+
+    ws.send(JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "logsSubscribe",
+      params: [
+        { mentions: [PROGRAM_ID.toBase58()] },
+        { commitment: "confirmed" }
+      ]
+    }));
+
+    heartbeat = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ method: "ping" }));
       }
-    ]
-  }));
+    }, 20_000);
+  });
 
-  // Heartbeat
-  setInterval(() => {
-    ws.send(JSON.stringify({ method: "ping" }));
-  }, 20_000);
-});
+  ws.on("message", handleWsMessage);
 
+  ws.on("close", () => {
+    console.warn("WebSocket closed — reconnecting...");
+    if (heartbeat) clearInterval(heartbeat);
+    setTimeout(connectWs, 1_000);
+  });
 
-ws.on('message', async (rawData: string) => {
+  ws.on("error", (err) => {
+    console.error("WebSocket error:", err);
+    ws.close();
+  });
+}
+
+connectWs();
+
+async function handleWsMessage(rawData: unknown) {
   try {
-    const msg = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-    
-    console.log("\nRAW MESSAGE RECEIVED:", JSON.stringify(msg, null, 2));
-   
-    // programSubscribe notifications use "programNotification"
-    if (msg.method === "logsNotification") {
-      const logs = msg.params.result.value.logs;
-      console.log("LOGS:", logs);
+    const text =
+      typeof rawData === 'string'
+        ? rawData
+        : Buffer.isBuffer(rawData)
+        ? rawData.toString()
+        : rawData instanceof ArrayBuffer
+        ? Buffer.from(rawData).toString()
+        : String(rawData);
 
-      const events = eventParser.parseLogs(logs);
+    const msg = JSON.parse(text);
 
-      for (const e of events) {
-        console.log("EVENT:", e.name, e.data);
-        // inside your logsNotification handler where you have `const e`:
-        if (e.name === 'DataRequested') {
-          console.log("DATAREQUESTED EVENT FIRED!");
-          const data = e.data as any;
+    if (msg.method !== "logsNotification") return;
 
-          // robustly read either snake_case or camelCase field
-          const rawRequestId = data.request_id ?? data.requestId ?? data.requestIdBytes ?? data.requestIdRaw;
+    const logs = msg.params.result.value.logs;
+    const events = eventParser.parseLogs(logs);
 
-          let requestId: PublicKey;
-          try {
-            if (typeof rawRequestId === 'string') {
-              requestId = new PublicKey(rawRequestId);
-            } else if (rawRequestId instanceof PublicKey) {
-              requestId = rawRequestId;
-            } else if (rawRequestId && typeof rawRequestId.toBase58 === 'function') {
-              // some objects have a toBase58 method
-              requestId = new PublicKey(rawRequestId.toBase58());
-            } else if (rawRequestId && rawRequestId._bn) {
-              // weird case: a BN-like inside object — try to stringify
-              console.warn('request_id looks like BN-like object; converting via toString()');
-              requestId = new PublicKey(rawRequestId.toString());
-            } else {
-              throw new Error('unrecognized request_id format');
-            }
-          } catch (err) {
-            console.error('Failed to construct PublicKey from event data. Raw event data:', data, err);
-            return; // bail so we don't crash the whole ws handler
-          }
+    for (const e of events) {
+      if (e.name === 'DataRequested') {
+        const data = e.data as any;
+        const rawRequestId =
+          data.request_id ??
+          data.requestId ??
+          data.requestIdBytes ??
+          data.requestIdRaw;
 
-          const url = (data.url ?? data._url ?? data.request_url) as string;
-          if (!url) {
-            console.error('No URL found on event data:', data);
-            return;
-          }
+        const requestId = new PublicKey(rawRequestId);
+        const url = data.url ?? data._url ?? data.request_url;
 
-          console.log("Request ID:", requestId.toBase58());
-          console.log("URL:", url);
-
-          try {
-            await processRequest(requestId, url);
-          } catch (err) {
-            console.error('processRequest failed:', err);
-          }
-        }
-
+        enqueue(() => processRequest(requestId, url));
       }
     }
-
   } catch (e) {
-    console.error('ws message handler error:', e);
+    console.error("WS message error:", e);
   }
-});
+}
+
+
+const requestQueue: Array<() => Promise<void>> = [];
+let processing = false;
+
+async function enqueue(job: () => Promise<void>) {
+  requestQueue.push(job);
+  if (!processing) processQueue();
+}
+
+async function processQueue() {
+  processing = true;
+  while (requestQueue.length > 0) {
+    const job = requestQueue.shift()!;
+    try {
+      await job();
+    } catch (e) {
+      console.error("Queued job failed:", e);
+    }
+  }
+  processing = false;
+}
 
 async function processRequest(requestId: PublicKey, url: string) {
   try {
@@ -177,7 +185,7 @@ async function processRequest(requestId: PublicKey, url: string) {
     //     RUST_LOG: 'info',
     //    }
     // });
-    
+
     // END: Build SP1 program
 
 
@@ -230,7 +238,7 @@ async function processRequest(requestId: PublicKey, url: string) {
         
         // Command: ./target/release/sp1-fetch-script
         // Arguments: ["--execute"]
-        const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute']);
+        const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute'],{cwd: './sp1-fetch',});
 
         if (stderr) {
             console.error("Rust stderr:", stderr);
