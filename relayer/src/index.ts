@@ -174,44 +174,49 @@ async function processRequest(requestId: PublicKey, url: string) {
        }
     });
 
-    // console.log("Generating Real SP1 proof...");
-    // execSync('./target/release/sp1-fetch-script --prove', {
-    //   cwd: './sp1-fetch',
-    //   stdio: 'inherit',
-    //   env: { ...process.env, 
-    //     RUST_LOG: 'info' ,
-    //   }
-    // });
+
+    // START: This logic is used to generate a local proof
+    console.log("Generating Real SP1 proof...");
+    execSync('./target/release/sp1-fetch-script --prove', {
+      cwd: './sp1-fetch',
+      stdio: 'inherit',
+      env: { ...process.env, 
+        RUST_LOG: 'info' ,
+      }
+    });
+    // END: Local proof generation
 
     const execFileAsync = promisify(execFile);
 
 
-    // Only use this if you have Succint PROVE token
-    try {
-      console.log("Requesting Network Proof from Succinct...");
+    // START: This logic is used to request a network proof from Succinct 
+  //   try {
+  //     console.log("Requesting Network Proof from Succinct...");
       
-      // You MUST include 'cwd' so Rust finds input.txt and writes proof.bin in the right place
-      const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--prove'], {
-          cwd: './sp1-fetch', 
-          env: { 
-              ...process.env, 
-              SP1_PROVER: 'network', 
-              NETWORK_PRIVATE_KEY: process.env.NETWORK_PRIVATE_KEY,
-              RUST_LOG: 'info' 
-          }
-      });
+  //     // You MUST include 'cwd' so Rust finds input.txt and writes proof.bin in the right place
+  //     const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--prove'], {
+  //         cwd: './sp1-fetch', 
+  //         env: { 
+  //             ...process.env, 
+  //             SP1_PROVER: 'network', 
+  //             NETWORK_PRIVATE_KEY: process.env.NETWORK_PRIVATE_KEY,
+  //             RUST_LOG: 'info' 
+  //         }
+  //     });
 
-      if (stderr) {
-            console.error("Rust stderr:", stderr);
-        }
+  //     if (stderr) {
+  //           console.error("Rust stderr:", stderr);
+  //       }
 
-      console.log("Rust Output:", stdout);
-  } catch (error: any) {
-      // If it still says "Killed", it means your main.rs is still trying to prove locally
-      console.error("Prover Error:", error);
-  }
+  //     console.log("Rust Output:", stdout);
+  // } catch (error: any) {
+  //     // If it still says "Killed", it means your main.rs is still trying to prove locally
+  //     console.error("Prover Error:", error);
+  // }
 
-    // Else you use this to generate a proof instead
+    // END: Network proof request
+
+    // START: This logic is used to execute the SP1 fetch script without proving (for testing)
     // try {
     //     console.log("Generating SP1 proof...");
         
@@ -227,6 +232,8 @@ async function processRequest(requestId: PublicKey, url: string) {
     // } catch (error) {
     //     console.error("Execution failed:", error);
     // }
+
+    // END: SP1 fetch script execution without proving
 
     const sp1Proof = fs.readFileSync('./sp1-fetch/proof.bin');
     console.log("Proof generated:", sp1Proof.length, "bytes");
