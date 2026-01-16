@@ -294,6 +294,11 @@ async function processRequest(requestId: PublicKey, url: string) {
     const requestAccount: any = await (program.account as any).dataRequest.fetch(requestId);
     console.log("Request Account:", requestAccount);
 
+    if (requestAccount.status?.fulfilled || requestAccount.status === 1) {
+      console.log("Request already fulfilled, skipping:", requestId.toBase58());
+      return;
+    }
+
     const userKey = requestAccount.owner as PublicKey;
     console.log("User Key:", userKey);
 
@@ -306,6 +311,13 @@ async function processRequest(requestId: PublicKey, url: string) {
       program.programId
     );
     console.log("Data Request PDA:", dataRequest);
+
+    const [escrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from('escrow'), dataRequest.toBuffer()],
+      program.programId
+    );
+
+    console.log("Escrow PDA:", escrow.toBase58());
 
     const [response] = PublicKey.findProgramAddressSync(
       [Buffer.from('response'), dataRequest.toBuffer()],
@@ -320,6 +332,30 @@ async function processRequest(requestId: PublicKey, url: string) {
     console.log("  publicInputsBuffer length:", publicInputsBuffer.length, "hex:", publicInputsBuffer.toString('hex'));
     console.log("  vkeyHashBuffer length:", vkeyHashBuffer.length, "hex:", vkeyHashBuffer.toString('hex'));
 
+    let escrowAccountInfo;
+    try {
+      escrowAccountInfo = await CONNECTION.getAccountInfo(escrow);
+    } catch (e) {
+      console.warn("Escrow account not found, skipping request:", requestId.toBase58());
+      return;
+    }
+
+    if (!escrowAccountInfo) {
+      console.warn("Escrow missing, skipping request:", requestId.toBase58());
+      return;
+    }
+
+    const escrowLamports = escrowAccountInfo.lamports;
+    console.log("Escrow balance (lamports):", escrowLamports);
+
+    // Hackathon rule: require escrow > rent + tiny buffer
+    const MIN_ESCROW_LAMPORTS = 5_000; // adjust later
+
+    if (escrowLamports < MIN_ESCROW_LAMPORTS) {
+      console.warn("Escrow underfunded, skipping request:", requestId.toBase58());
+      return;
+    }
+
     // Ensure all are Buffers (Anchor/Borsh will handle serialization)
     const responseBuffer = Buffer.isBuffer(responseBytes) ? responseBytes : Buffer.from(responseBytes);
     const proofBuffer = Buffer.isBuffer(sp1Proof) ? sp1Proof : Buffer.from(sp1Proof);
@@ -329,6 +365,7 @@ async function processRequest(requestId: PublicKey, url: string) {
       .accounts({
         dataRequest,
         response,
+        escrow,
         relayer: RELAYER_KEYPAIR.publicKey,
         systemProgram: SystemProgram.programId,
       })
@@ -365,8 +402,14 @@ async function processRequest(requestId: PublicKey, url: string) {
       tipVTx.sign([RELAYER_KEYPAIR]);
     }
 
+    const canTip = escrowLamports > 50_000; // example
+
+    if (!canTip) {
+      console.log("Escrow low — skipping Jito tip");
+    }
+
     // Step 5: Send via Jito searcher client (if available) or fallback to RPC
-    if (client && tipVTx) {
+    if (client && tipVTx && canTip) {
       try {
         const txbundle = new bundle.Bundle([fulfillVTx, tipVTx], 5); // 5 = max attempts / priority
         

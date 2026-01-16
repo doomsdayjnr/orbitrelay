@@ -103,6 +103,7 @@ function App() {
       const program = new anchor.Program(idl as any, provider);
 
       const requestSlot = Date.now() + Math.floor(Math.random() * 1000);
+      const FEE_LAMPORTS = new anchor.BN(0.01 * anchor.web3.LAMPORTS_PER_SOL);
       console.log("Request Slot:", requestSlot);
       // const url = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
       const requestUrl = url;
@@ -125,13 +126,23 @@ function App() {
         program.programId
       );
 
+      // === DERIVE THE ESCROW PDA ===
+      const [escrowPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("escrow"),
+          requestPda.toBuffer(),
+        ],
+        program.programId
+      );
+
       console.log("requestPda:", requestPda.toBase58());
       console.log("responsePda:", responsePda.toBase58());
+      console.log("escrowPda:", escrowPda.toBase58());
 
       // Send request
        await program.methods
-        .requestData(requestUrl, requestJsonPath, new anchor.BN(requestSlot))
-        .accounts({ dataRequest: requestPda, user: publicKey, })
+        .requestData(requestUrl, requestJsonPath, new anchor.BN(requestSlot), FEE_LAMPORTS)
+        .accounts({ dataRequest: requestPda, escrow: escrowPda, user: publicKey, })
         .rpc();
 
     

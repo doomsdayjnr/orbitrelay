@@ -2,6 +2,7 @@
 
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;  // For URL hashing
+use anchor_lang::solana_program::system_instruction;
 use sp1_solana::verify_proof;  // Real SP1 Groth16 verifier
 use borsh::BorshDeserialize;
 
@@ -17,11 +18,26 @@ pub mod https_gateway {
         url: String,
         json_path: String,  // e.g., "solana.usd" for Coingecko
         request_slot: u64,
+        fee_lamports: u64,
     ) -> Result<()> {
         msg!("DEBUG: request_data called for user {}", ctx.accounts.user.key());
         msg!("DEBUG: request PDA = {}", ctx.accounts.data_request.key());
         require!(url.len() <= 280, ErrorCode::UrlTooLong);
         require!(json_path.len() <= 100, ErrorCode::PathTooLong);
+        require!(fee_lamports > 0, ErrorCode::InsufficientFee);
+
+        anchor_lang::solana_program::program::invoke(
+            &system_instruction::transfer(
+                ctx.accounts.user.key,
+                &ctx.accounts.escrow.key(),
+                fee_lamports,
+            ),
+            &[
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.escrow.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
 
         let request_id = ctx.accounts.data_request.key();
         let request = &mut ctx.accounts.data_request;
@@ -106,6 +122,15 @@ pub struct RequestData<'info> {
     )]
     pub data_request: Account<'info, DataRequest>,
 
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 32,
+        seeds = [b"escrow", data_request.key().as_ref()],
+        bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
     #[account(mut)]
     pub user: Signer<'info>,
 
@@ -118,6 +143,13 @@ pub struct FulfillRequest<'info> {
     pub data_request: Account<'info, DataRequest>,
 
     #[account(
+        mut,
+        seeds = [b"escrow", data_request.key().as_ref()],
+        bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
         init,
         payer = relayer,
         space = 8 + DataResponse::INIT_SPACE,
@@ -126,6 +158,7 @@ pub struct FulfillRequest<'info> {
     )]
     pub response: Account<'info, DataResponse>,
 
+    /// CHECK: relayer only signs, does not pay
     #[account(mut)]
     pub relayer: Signer<'info>,  // Your off-chain bot
 
@@ -151,6 +184,11 @@ pub struct DataResponse {
     pub data: Vec<u8>,        // Raw JSON bytes (verified!)
     pub fulfilled_slot: u64,
     pub relayer: Pubkey,
+}
+
+#[account]
+pub struct Escrow {
+    pub request: Pubkey,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq)]
@@ -215,4 +253,6 @@ pub enum ErrorCode {
     MismatchedUrlHash,
     #[msg("Failed to deserialize public inputs")]
     InvalidPublicInputs,
+    #[msg("Insufficient fee provided")]
+    InsufficientFee,
 }
