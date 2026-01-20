@@ -1,8 +1,10 @@
 import { PublicKey } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
 
 export interface OrbitRelayConfig {
-  connection: any; // Connection (avoid importing type here yet)
-  wallet: any;     // WalletAdapter
+  program: anchor.Program;   // <-- user passes this
+  connection: any;
+  wallet: any;
   programId: PublicKey;
 }
 

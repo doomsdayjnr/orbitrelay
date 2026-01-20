@@ -1,2 +1,2 @@
-export { OrbitRelay } from "./client";
 export * from "./types";
+export * from "./client";
