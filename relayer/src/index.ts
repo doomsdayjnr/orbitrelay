@@ -10,7 +10,7 @@ import { promisify } from 'util';
 import { searcher, bundle } from "jito-ts";
 import * as fs from 'fs';
 import { BundleResult } from 'jito-ts/dist/gen/block-engine/bundle';
-import path from 'path';
+import crypto from 'crypto';
 
 require('dotenv').config();
 
@@ -20,7 +20,7 @@ console.log("IDL program address:", anchorIdl.address);
 
 // Config
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID!);
-const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
+const RPC_URL = "https://devnet.helius-rpc.com/?api-key=" + process.env.NEXT_PUBLIC_HELIUS_KEY || 'https://api.devnet.solana.com';
 const BLOCK_ENGINE_URL = process.env.BLOCK_ENGINE_URL;
 const CONNECTION = new Connection(RPC_URL, 'confirmed');
 const TIP_AMOUNT = 1000; // lamports
@@ -191,14 +191,14 @@ async function processRequest(requestId: PublicKey, url: string) {
 
     // START: This logic is used to generate a local proof
     
-    // console.log("Generating Real SP1 proof...");
-    // execSync('./target/release/sp1-fetch-script --prove', {
-    //   cwd: './sp1-fetch',
-    //   stdio: 'inherit',
-    //   env: { ...process.env, 
-    //     RUST_LOG: 'info' ,
-    //   }
-    // });
+    console.log("Generating Real SP1 proof...");
+    execSync('./target/release/sp1-fetch-script --prove', {
+      cwd: './sp1-fetch',
+      stdio: 'inherit',
+      env: { ...process.env, 
+        RUST_LOG: 'info' ,
+      }
+    });
 
     // END: Local proof generation
 
@@ -233,21 +233,21 @@ async function processRequest(requestId: PublicKey, url: string) {
     // END: Network proof request
 
     // START: This logic is used to execute the SP1 fetch script without proving (for testing)
-    try {
-        console.log("Generating SP1 proof...");
+    // try {
+    //     console.log("Generating SP1 proof...");
         
-        // Command: ./target/release/sp1-fetch-script
-        // Arguments: ["--execute"]
-        const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute'],{cwd: './sp1-fetch',});
+    //     // Command: ./target/release/sp1-fetch-script
+    //     // Arguments: ["--execute"]
+    //     const { stdout, stderr } = await execFileAsync('./target/release/sp1-fetch-script', ['--execute'],{cwd: './sp1-fetch',});
 
-        if (stderr) {
-            console.error("Rust stderr:", stderr);
-        }
-        console.log("Rust stdout:", stdout);
+    //     if (stderr) {
+    //         console.error("Rust stderr:", stderr);
+    //     }
+    //     console.log("Rust stdout:", stdout);
 
-    } catch (error) {
-        console.error("Execution failed:", error);
-    }
+    // } catch (error) {
+    //     console.error("Execution failed:", error);
+    // }
 
     // END: SP1 fetch script execution without proving
 
@@ -259,10 +259,7 @@ async function processRequest(requestId: PublicKey, url: string) {
     const jsonData = JSON.parse(jsonString);
     const price = jsonData.solana?.usd;  // Parsed price (u64 for commit)
 
-    // URL hash (public input — relayer computes, ZK proves it was used)
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(url));
-    const urlHashBytes = new Uint8Array(hashBuffer);
+    const urlHashBytes = crypto.createHash('sha256').update(url).digest();
     
     // Serialize public inputs as Borsh: [url_hash: [u8;32], price: u64]
     const publicInputsBuffer = Buffer.concat([

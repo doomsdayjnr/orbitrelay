@@ -23,9 +23,13 @@ sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
 ark-bn254 = "0.4.0"  # For BN254 curve ops (used in Groth16)
 hex = "0.4"
 
+
+
 [profile.release]
 lto = true
 codegen-units = 1
 opt-level = 3
 strip = true
+
+
 

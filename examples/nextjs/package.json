@@ -1,0 +1,23 @@
+{
+  "name": "orbitrelay-example-nextjs",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "14.1.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "@orbit-relay/sdk": "*",
+    "@solana/web3.js": "^1.91.0",
+    "@coral-xyz/anchor": "^0.30.0",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.35",
+    "@solana/wallet-adapter-wallets": "^0.19.25"
+  }
+}

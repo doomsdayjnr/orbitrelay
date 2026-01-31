@@ -1,31 +1,32 @@
 import { PublicKey } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 
-export function deriveRequestPda(
+export function deriveDataRequestPda(
   programId: PublicKey,
   user: PublicKey,
-  requestSlot: number
+  requestSlot: bigint
 ): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
+  const slotBuf = Buffer.alloc(8);
+  slotBuf.writeBigUInt64LE(requestSlot);
+
+  return PublicKey.findProgramAddressSync(
     [
       Buffer.from("request"),
       user.toBuffer(),
-      new anchor.BN(requestSlot).toArrayLike(Buffer, "le", 8),
+      slotBuf
     ],
     programId
-  );
-
-  return pda;
+  )[0];
 }
 
-export function deriveResponsePda(
+export function deriveDataResponsePda(
   programId: PublicKey,
-  requestPda: PublicKey
+  dataRequest: PublicKey
 ): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("response"), requestPda.toBuffer()],
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("response"),
+      dataRequest.toBuffer()
+    ],
     programId
-  );
-
-  return pda;
+  )[0];
 }

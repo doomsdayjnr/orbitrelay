@@ -6,7 +6,22 @@ use anchor_lang::solana_program::system_instruction;
 use sp1_solana::verify_proof;  // Real SP1 Groth16 verifier
 use borsh::BorshDeserialize;
 
+use light_sdk::{
+    account::LightAccount,
+    address::v2::derive_address,
+    cpi::{v2::CpiAccounts, CpiSigner},
+    derive_light_cpi_signer,
+    instruction::{PackedAddressTreeInfo, ValidityProof},
+    LightDiscriminator, LightHasher,
+};
+use light_sdk::constants::ADDRESS_TREE_V2;
+use light_sdk::cpi::{v2::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction};
+
+
 declare_id!("9Y14JQxhwyHVrvMJeK3UedpprfJmv1piTsAf3ZWWPkiG"); 
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("9Y14JQxhwyHVrvMJeK3UedpprfJmv1piTsAf3ZWWPkiG");
 
 #[program]
 pub mod https_gateway {
@@ -60,8 +75,11 @@ pub mod https_gateway {
     }
 
     /// Off-chain relayer calls this with SP1 proof + response
-    pub fn fulfill_request(
+    pub fn fulfill_request<'info>(
         ctx: Context<FulfillRequest>,
+        proof: ValidityProof,           // Light Protocol Validity Proof
+        address_tree_info: PackedAddressTreeInfo, // Merkle Tree info
+        output_state_tree_index: u8,    // Index for the new account
         response_bytes: Vec<u8>,
         sp1_proof: Vec<u8>,  // SP1 Groth16 proof (from relayer)
         sp1_public_inputs: Vec<u8>,  // Serialized public inputs (e.g., Borsh: url_hash + price)
@@ -80,11 +98,12 @@ pub mod https_gateway {
         if deserialized_hash != request.url_hash {
             return err!(ErrorCode::MismatchedUrlHash);
         }
-        // Optional: Deserialize price or other outputs if you want to store/use them on-chain
+        
 
         // Step 2: Verify the SP1 ZK proof using Succinct's Groth16 verifier
         let vk = sp1_solana::GROTH16_VK_5_0_0_BYTES;
-        // let vk = *sp1_solana::GROTH16_VK_BYTES;
+        // Alternative option let vk = *sp1_solana::GROTH16_VK_BYTES;
+
         verify_proof(
             &sp1_proof,
             &sp1_public_inputs,
@@ -92,22 +111,81 @@ pub mod https_gateway {
             vk,
         ).map_err(|_| ErrorCode::InvalidProof)?;
 
-        // Step 3: Store the verified response (same as yours)
-        let response = &mut ctx.accounts.response;
-        response.request = request.key();
-        response.data = response_bytes;
-        response.fulfilled_slot = Clock::get()?.slot;
-        response.relayer = ctx.accounts.relayer.key();
+        // Step 3:  Light Protocol Compression ---
+        // Instead of initializing a PDA, we "output" a compressed account.
+        // This effectively 'zips' the 4KB data into the Merkle Tree.
+        
+        // 2a. Prepare the CPI accounts wrapper
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.relayer.as_ref(), // The relayer pays for the state update
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
+        );
+
+        // 2b. Verify address tree
+        let address_tree_pubkey = address_tree_info
+            .get_tree_pubkey(&light_cpi_accounts)
+            .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
+
+        if address_tree_pubkey.to_bytes() != ADDRESS_TREE_V2 {
+            msg!("Invalid address tree");
+            return err!(ErrorCode::InvalidAccountData);
+        }
+
+        // 2c. Derive the address for the new compressed account
+        // We use the request ID as a seed to link the response to the request
+        let (address, address_seed) = derive_address(
+            &[b"response", request.key().as_ref()], 
+            &address_tree_pubkey,
+            &crate::ID,
+        );
+
+        let new_address_params =
+            address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
+
+        // 2d. Create the LightAccount wrapper
+        let mut response_account = LightAccount::<DataResponse>::new_init(
+            &crate::ID,
+            Some(address),
+            output_state_tree_index,
+        );
+
+        // 2e. Set the data
+        response_account.owner = ctx.accounts.relayer.key(); // Or request.owner if you prefer
+        response_account.request = request.key();
+        response_account.data = response_bytes.clone();
+        response_account.fulfilled_slot = Clock::get()?.slot;
+        response_account.relayer = ctx.accounts.relayer.key();
+
+        // 2f. Execute the CPI to the Light System Program
+        LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(response_account)?
+            .with_new_addresses(&[new_address_params])
+            .invoke(light_cpi_accounts)?;
 
         request.status = RequestStatus::Fulfilled;
 
         emit!(RequestFulfilled {
             request_id: request.key(),
-            data_length: response.data.len() as u32,
+            data_length: response_bytes.len() as u32,
         });
 
         Ok(())
     }
+}
+
+// NEW: Updated struct for v2 - uses LightHasher/LightDiscriminator
+#[derive(Debug, Clone, Default, LightDiscriminator, LightHasher, AnchorSerialize, AnchorDeserialize)]
+pub struct DataResponse {
+    #[hash] // Marks this field as part of the unique identity hash
+    pub request: Pubkey,
+    #[hash]
+    pub data: Vec<u8>, 
+    pub fulfilled_slot: u64,
+    #[hash]
+    pub relayer: Pubkey,
+    #[hash]
+    pub owner: Pubkey, // Added owner field for LightAccount compatibility
 }
 
 #[derive(Accounts)]
@@ -149,19 +227,10 @@ pub struct FulfillRequest<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
-    #[account(
-        init,
-        payer = relayer,
-        space = 8 + DataResponse::INIT_SPACE,
-        seeds = [b"response", data_request.key().as_ref()],
-        bump
-    )]
-    pub response: Account<'info, DataResponse>,
-
     /// CHECK: relayer only signs, does not pay
     #[account(mut)]
     pub relayer: Signer<'info>,  // Your off-chain bot
-
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -178,13 +247,6 @@ pub struct DataRequest {
     pub bump: u8,
 }
 
-#[account]
-pub struct DataResponse {
-    pub request: Pubkey,
-    pub data: Vec<u8>,        // Raw JSON bytes (verified!)
-    pub fulfilled_slot: u64,
-    pub relayer: Pubkey,
-}
 
 #[account]
 pub struct Escrow {
@@ -255,4 +317,8 @@ pub enum ErrorCode {
     InvalidPublicInputs,
     #[msg("Insufficient fee provided")]
     InsufficientFee,
+    #[msg("Not enough account keys provided for Light CPI")]
+    AccountNotEnoughKeys,
+    #[msg("Invalid account data encountered")]
+    InvalidAccountData,
 }

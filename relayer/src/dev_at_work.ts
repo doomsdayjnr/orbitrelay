@@ -10,6 +10,8 @@ import { promisify } from 'util';
 import { searcher, bundle } from "jito-ts";
 import * as fs from 'fs';
 import { BundleResult } from 'jito-ts/dist/gen/block-engine/bundle';
+import crypto from 'crypto';
+
 require('dotenv').config();
 
 console.log("=== ORBITRELAY RELAYER DEBUG MODE ===");
@@ -225,10 +227,7 @@ async function processRequest(requestId: PublicKey, url: string) {
     const jsonData = JSON.parse(jsonString);
     const price = jsonData.solana?.usd;  // Parsed price (u64 for commit)
 
-    // URL hash (public input — relayer computes, ZK proves it was used)
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(url));
-    const urlHashBytes = new Uint8Array(hashBuffer);
+    const urlHashBytes = crypto.createHash('sha256').update(url).digest();
     
     // Serialize public inputs as Borsh: [url_hash: [u8;32], price: u64]
     const publicInputsBuffer = Buffer.concat([

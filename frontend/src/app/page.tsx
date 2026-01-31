@@ -5,14 +5,14 @@ import { useConnection, useWallet, useAnchorWallet } from '@solana/wallet-adapte
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { clusterApiUrl, PublicKey } from '@solana/web3.js';
+import { PublicKey, ComputeBudgetProgram } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { useCallback, useState } from 'react';
 import idl from '../../../https-gateway/target/idl/https_gateway.json';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 const wallets = [new PhantomWalletAdapter()];
-const network = clusterApiUrl('devnet');
+const network = "https://devnet.helius-rpc.com/?api-key=" + process.env.NEXT_PUBLIC_HELIUS_KEY;
 // window.Buffer = window.Buffer || Buffer;
 const PRESETS = [
   {
@@ -139,14 +139,49 @@ function App() {
       console.log("responsePda:", responsePda.toBase58());
       console.log("escrowPda:", escrowPda.toBase58());
 
-      // Send request
-       await program.methods
+      console.log("Fetching Helius Priority Fee...");
+
+      // 1. Get Priority Fee Estimate from Helius
+      const response = await fetch(network, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: '1',
+          method: 'getPriorityFeeEstimate',
+          params: [{
+            accountKeys: [program.programId.toBase58()], // Watch accounts related to your program
+            options: {
+              recommended: true
+            }
+          }]
+        }),
+      });
+      const data = await response.json();
+      const priorityFee = data.result?.priorityFeeEstimate || 1000; // Default fallback
+      console.log("Priority Fee:", priorityFee);
+
+      // 2. Add Compute Budget Instruction
+      const computePriceIx = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFee
+      });
+
+      // 3. Build and Send Transaction manually (so we can add the fee)
+      const tx = new anchor.web3.Transaction();
+      tx.add(computePriceIx); // Add the fee instruction FIRST
+      
+      const ix = await program.methods
         .requestData(requestUrl, requestJsonPath, new anchor.BN(requestSlot), FEE_LAMPORTS)
-        .accounts({ dataRequest: requestPda, escrow: escrowPda, user: publicKey, })
-        .rpc();
+        .accounts({ dataRequest: requestPda, escrow: escrowPda, user: publicKey })
+        .instruction();
+        
+      tx.add(ix);
 
-    
+      // 4. Send using Provider (handles signing)
+      const signature = await provider.sendAndConfirm(tx);
+      console.log("Transaction Signature:", signature);
 
+     
       // === POLL FOR RESPONSE ===
       const pollInterval = setInterval(async () => {
         try {

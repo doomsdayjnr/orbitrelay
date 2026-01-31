@@ -1,7 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { OrbitRelayConfig, RequestParams, RelayResult } from "./types";
-import { deriveRequestPda, deriveResponsePda } from "./pdas";
+import { deriveDataRequestPda, deriveDataResponsePda } from "./pdas";
+import { TextDecoder } from "util";
 
 export class OrbitRelay {
   private connection;
@@ -23,18 +24,18 @@ export class OrbitRelay {
       throw new Error("Wallet not connected");
     }
 
-    const requestSlot = Date.now() + Math.floor(Math.random() * 1000);
+    const requestSlot = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
 
-    const requestPda = deriveRequestPda(
+    const requestPda = deriveDataRequestPda(
       this.programId,
       this.wallet.publicKey,
       requestSlot
     );
 
-    const responsePda = deriveResponsePda(this.programId, requestPda);
+    const responsePda = deriveDataResponsePda(this.programId, requestPda);
 
     await this.program.methods
-      .requestData(url, jsonPath, new anchor.BN(requestSlot))
+      .requestData(url, jsonPath, new anchor.BN(requestSlot.toString()))
       .accounts({
         dataRequest: requestPda,
         user: this.wallet.publicKey,
