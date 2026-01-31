@@ -47,6 +47,8 @@ Thumbs.db
 *.key
 *.pem
 
-# Submodules with git issues
-relayer/sp1-fetch/
+# Large files
+*.tar.gz
+xpack-riscv-none-elf-gcc-*.tar.gz
+
 
