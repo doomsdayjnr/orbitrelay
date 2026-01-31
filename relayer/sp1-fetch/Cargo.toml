@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "program",  # guest program
+    "script",   # host program
+]
+
+resolver = "2"
+
+socket2 = { version = "0.6", features = [], optional = true }

@@ -1,0 +1,4 @@
+[patch.crates-io]
+mio = { git = "https://github.com/tokio-rs/mio", rev = "b4d02c2" }
+socket2 = { git = "https://github.com/rust-lang/socket2", rev = "b6d5a5b" }
+tokio = { git = "https://github.com/tokio-rs/tokio", rev = "tokio-1.38.0" }

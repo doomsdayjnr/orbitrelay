@@ -1,0 +1,16 @@
+# script/Cargo.toml
+[package]
+name = "sp1-fetch-script"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Path to your Guest Program binary for the prover to read
+sp1-fetch-program = { path = "../program"}
+
+sp1-sdk = { version = "5.2.3" }
+
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+clap = { version = "4", features = ["derive"] }

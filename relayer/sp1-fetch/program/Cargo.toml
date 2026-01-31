@@ -1,0 +1,16 @@
+#program/Cargo.toml
+[package]
+name = "sp1-fetch-program"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = { version = "5.2.3" }
+
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+sha2 = { version = "0.10", default-features = false }
+getrandom = { version = "0.2", features = ["custom"], default-features = false }
+
+[features]
+elf = []
